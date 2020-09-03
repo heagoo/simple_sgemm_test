@@ -1,5 +1,6 @@
 #include <iostream>
 #include <sstream>
+#include <cstdio>
 #include <cstdlib>
 #include "timer.h"
 #include "mkl.h"
@@ -24,7 +25,7 @@ static void init(float *data, int size) {
 
 int main(int argc, char **argv) {
     if (argc != 10) {
-        printf("Usage: %s T/N T/N m n k lda ldb ldb loops\n", argv[0]);
+        printf("Usage: %s T/N T/N m n k lda ldb ldc loops\n", argv[0]);
         exit(-1);
     }
     bool aTranspose = (argv[1][0] == 'T');
