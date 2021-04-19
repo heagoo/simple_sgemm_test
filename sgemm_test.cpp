@@ -2,6 +2,7 @@
 #include <sstream>
 #include <cstdio>
 #include <cstdlib>
+#include <emmintrin.h>
 #include "timer.h"
 #include "mkl.h"
 
@@ -23,9 +24,18 @@ static void init(float *data, int size) {
     }
 }
 
+#define CACHELINE_SIZE 64
+template<typename T>
+static void flush_cache(const T *buf, size_t size) {
+    #pragma omp parallel for
+    for (size_t offset = 0; offset < size; offset += CACHELINE_SIZE / sizeof(T)) {
+         _mm_clflush(buf + offset);
+    }
+}
+
 int main(int argc, char **argv) {
-    if (argc != 10) {
-        printf("Usage: %s T/N T/N m n k lda ldb ldc loops\n", argv[0]);
+    if (argc < 10) {
+        printf("Usage: %s T/N T/N m n k lda ldb ldc loops [flush_b=0]\n", argv[0]);
         exit(-1);
     }
     bool aTranspose = (argv[1][0] == 'T');
@@ -37,6 +47,8 @@ int main(int argc, char **argv) {
     int ldb = atoi(argv[7]);
     int ldc = atoi(argv[8]);
     int loops = atoi(argv[9]);
+    int flush_b = 0;
+    if (argc > 10) { flush_b = atoi(argv[10]); }
 
     int sizeA = m * lda;
     if (aTranspose) { sizeA = k * lda; }
@@ -56,15 +68,18 @@ int main(int argc, char **argv) {
     // Exclude the first time running
     sgemm(aTranspose, bTranspose, A, B, C, m, n, k, lda, ldb, ldc);
 
-    std::ostringstream oss;
-    oss << "Time of " << loops << " loops";
-    std::string str = oss.str();
-    {
-        Timer t(str.c_str());
-        for (int i = 0; i < loops; ++i) {
-            sgemm(aTranspose, bTranspose, A, B, C, m, n, k, lda, ldb, ldc);
+    float totalTime = 0;
+    for (int i = 0; i < loops; ++i) {
+        if (flush_b) {
+            flush_cache(B, sizeB);
         }
+
+        Timer t;
+        sgemm(aTranspose, bTranspose, A, B, C, m, n, k, lda, ldb, ldc);
+        totalTime += t.getTime();
     }
+
+    printf("Average %f ms per sgemm(m=%d,n=%d,k=%d)\n", totalTime / loops, m, n, k);
 
     return 0;
 }

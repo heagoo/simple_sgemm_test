@@ -8,28 +8,33 @@ using namespace std;
 
 class Timer {
 public:
-  Timer(const char *_name) : name(_name), pTotalTime(NULL) {
-    gettimeofday(&start, NULL);
-  }
-
-  Timer(const char *_name, float *_pTotal) : name(_name), pTotalTime(_pTotal) {
+  Timer(bool _print = false) : print(_print) {
     gettimeofday(&start, NULL);
   }
 
   ~Timer() {
+    if (print) {
+      gettimeofday(&end, NULL);
+      float interval = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000.0f;
+      printf("%f ms\n", interval);
+    }
+  }
+
+  void reset() {
+    gettimeofday(&start, NULL);
+  }
+
+  float getTime() {
     gettimeofday(&end, NULL);
     float interval = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000.0f;
-    if (pTotalTime) {
-      *pTotalTime += interval;
-    }
-    cout << name << ": " << interval << " ms" << endl;
+    return interval;
   }
 
 private:
-  string name;
   struct timeval start;
   struct timeval end;
-  float *pTotalTime;
+
+  bool print;
 };
 
 #endif
